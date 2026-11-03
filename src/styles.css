@@ -1,0 +1,118 @@
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: #f3f6fa;
+  color: #1b2733;
+}
+
+/* ---------- Login ---------- */
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cartao {
+  background: #fff;
+  padding: 32px;
+  border-radius: 10px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+.cartao h1 { margin: 0 0 6px; text-align: center; color: #1f3a5f; }
+
+/* ---------- Campos e botões ---------- */
+label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+
+input,
+select,
+textarea {
+  padding: 9px 10px;
+  border: 1px solid #c4ccd6;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+
+button {
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #1f3a5f;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+button:hover { background: #2b4f80; }
+
+button.secundario { background: #e6ebf2; color: #1f3a5f; }
+button.secundario:hover { background: #d3dce8; }
+button.pequeno { padding: 5px 10px; font-size: 13px; }
+
+.erro { margin: 0; color: #b3261e; font-size: 13px; }
+.aviso { color: #4a5a6a; margin: 0 0 12px; }
+.atrasada { color: #b3261e; font-weight: 600; }
+
+/* ---------- Layout do programa ---------- */
+.app { display: flex; min-height: 100vh; }
+
+.menu {
+  width: 220px;
+  background: #1f3a5f;
+  color: #fff;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.menu h2 { margin: 0 0 16px 8px; }
+.menu nav { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+
+.item-menu { text-align: left; background: transparent; padding: 10px 12px; }
+.item-menu:hover { background: #2b4f80; }
+.item-menu.ativo { background: #fff; color: #1f3a5f; font-weight: 600; }
+
+.conteudo { flex: 1; padding: 28px 32px; }
+.tela h1 { margin-top: 0; color: #1f3a5f; }
+
+/* ---------- Formulários e tabelas ---------- */
+.formulario { display: flex; flex-direction: column; gap: 14px; max-width: 420px; }
+.botoes { display: flex; gap: 8px; }
+
+.tabela { width: 100%; border-collapse: collapse; background: #fff; }
+.tabela th,
+.tabela td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e1e6ec;
+  font-size: 14px;
+}
+.tabela th { background: #1f3a5f; color: #fff; }
+
+.acoes { display: flex; gap: 6px; }
+.desabilitado td { color: #8a94a0; }
+
+/* ---------- Abas das pendências ---------- */
+.abas { display: flex; gap: 6px; margin-bottom: 16px; }
+.aba { background: #e6ebf2; color: #1f3a5f; }
+.aba:hover { background: #d3dce8; }
+.aba.ativa { background: #1f3a5f; color: #fff; }
+.aba.ativa:hover { background: #1f3a5f; }
+
+/* ---------- Diálogo ---------- */
+.dialogo {
+  border: 0;
+  border-radius: 10px;
+  padding: 24px;
+  width: 380px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+.dialogo::backdrop { background: rgba(0, 0, 0, 0.4); }

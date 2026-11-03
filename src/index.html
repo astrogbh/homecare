@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="main.js" defer></script>
+    <title>HomeCare</title>
+  </head>
+  <body>
+    <main id="tela-login" class="tela-login">
+      <form id="form-login" class="cartao">
+        <h1>HomeCare</h1>
+        <label>Usuário <input id="login-usuario" required autofocus /></label>
+        <label>Senha <input id="login-senha" type="password" required /></label>
+        <p id="login-erro" class="erro" hidden></p>
+        <button type="submit">Entrar</button>
+      </form>
+    </main>
+
+    <div id="app" class="app" hidden>
+      <aside class="menu">
+        <h2>HomeCare</h2>
+        <nav>
+          <button class="item-menu" data-tela="pendencias">Pendências</button>
+          <button class="item-menu" data-tela="historico">Histórico</button>
+          <button class="item-menu" data-tela="equipamentos">Equipamentos</button>
+          <button class="item-menu" data-tela="cadastro">Novo equipamento</button>
+          <button class="item-menu" data-tela="os">Nova OS</button>
+        </nav>
+        <button id="btn-sair" class="item-menu">Sair</button>
+      </aside>
+
+      <section class="conteudo">
+        <!-- Pendências -->
+        <div id="tela-pendencias" class="tela" hidden>
+          <h1>Pendências</h1>
+          <div class="abas">
+            <button type="button" class="aba ativa" data-aba="manutencoes">Manutenções</button>
+            <button type="button" class="aba" data-aba="os">Ordens de serviço</button>
+          </div>
+
+          <div id="aba-manutencoes">
+            <p id="pend-aviso" class="aviso"></p>
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Equipamento</th><th>Localização</th><th>Data prevista</th>
+                  <th>Situação</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="lista-pendencias"></tbody>
+            </table>
+          </div>
+
+          <div id="aba-os" hidden>
+            <p id="os-aviso" class="aviso"></p>
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Nº</th><th>Equipamento</th><th>Localização</th>
+                  <th>Problema</th><th>Aberta em</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="lista-os"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Histórico (Passo 9) -->
+        <div id="tela-historico" class="tela" hidden>
+          <h1>Histórico</h1>
+        </div>
+
+        <!-- Lista de equipamentos -->
+        <div id="tela-equipamentos" class="tela" hidden>
+          <h1>Equipamentos</h1>
+          <table class="tabela">
+            <thead>
+              <tr>
+                <th>Nome</th><th>Localização</th><th>Aquisição</th>
+                <th>Próx. manutenção</th><th>Periodicidade</th><th>Situação</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="lista-equipamentos"></tbody>
+          </table>
+        </div>
+
+        <!-- Cadastro de equipamento -->
+        <div id="tela-cadastro" class="tela" hidden>
+          <h1>Novo equipamento</h1>
+          <form id="form-equipamento" class="formulario">
+            <label>Nome do item <input id="eq-nome" required /></label>
+            <label>Localização na casa <input id="eq-local" required placeholder="Ex.: Cozinha" /></label>
+            <label>Data de aquisição <input id="eq-aquisicao" type="date" required /></label>
+            <label>Periodicidade da manutenção (meses)
+              <input id="eq-periodicidade" type="number" min="1" required />
+            </label>
+            <label>Próxima manutenção <input id="eq-proxima" type="date" required /></label>
+            <p id="eq-msg" class="erro" hidden></p>
+            <button type="submit">Salvar</button>
+          </form>
+        </div>
+
+        <!-- Nova OS -->
+        <div id="tela-os" class="tela" hidden>
+          <h1>Nova ordem de serviço</h1>
+          <form id="form-os" class="formulario">
+            <label>Equipamento <select id="os-equipamento" required></select></label>
+            <label>O que aconteceu?
+              <textarea id="os-descricao" rows="5" required></textarea>
+            </label>
+            <p id="os-msg" class="erro" hidden></p>
+            <button type="submit">Abrir OS</button>
+          </form>
+        </div>
+
+        <!-- Editar equipamento -->
+        <div id="tela-editar" class="tela" hidden>
+          <h1>Editar equipamento</h1>
+          <form id="form-editar" class="formulario">
+            <label>Nome do item <input id="ed-nome" required /></label>
+            <label>Localização na casa <input id="ed-local" required /></label>
+            <label>Data de aquisição <input id="ed-aquisicao" type="date" required /></label>
+            <label>Periodicidade da manutenção (meses)
+              <input id="ed-periodicidade" type="number" min="1" required />
+            </label>
+            <label>Próxima manutenção <input id="ed-proxima" type="date" required /></label>
+            <p id="ed-msg" class="erro" hidden></p>
+            <div class="botoes">
+              <button type="submit">Salvar</button>
+              <button type="button" id="ed-cancelar" class="secundario">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Concluir manutenção / OS -->
+        <div id="tela-concluir" class="tela" hidden>
+          <h1 id="conc-titulo">Concluir manutenção</h1>
+          <p id="conc-resumo" class="aviso"></p>
+          <form id="form-concluir" class="formulario">
+            <label>Imprevistos ou observações
+              <textarea id="conc-obs" rows="5"></textarea>
+            </label>
+            <p id="conc-msg" class="erro" hidden></p>
+            <div class="botoes">
+              <button type="submit">Concluir</button>
+              <button type="button" id="conc-cancelar" class="secundario">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <!-- Diálogo de desabilitar equipamento -->
+    <dialog id="dlg-desabilitar" class="dialogo">
+      <form id="form-desabilitar" class="formulario">
+        <h2>Desabilitar equipamento</h2>
+        <p id="dlg-nome"></p>
+        <label>Descreva o ocorrido
+          <textarea id="dlg-motivo" rows="4" required></textarea>
+        </label>
+        <p id="dlg-msg" class="erro" hidden></p>
+        <div class="botoes">
+          <button type="submit">Desabilitar</button>
+          <button type="button" id="dlg-cancelar" class="secundario">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
