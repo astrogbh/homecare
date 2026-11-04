@@ -69,6 +69,17 @@ function somarMeses(iso, meses) {
   return `${dt.getFullYear()}-${mm}-${dd}`;
 }
 
+// Trava os botões de envio enquanto o Rust responde (evita clique duplo).
+async function invocarTravando(comando, args) {
+  const botoes = document.querySelectorAll('form button[type="submit"]');
+  botoes.forEach((b) => (b.disabled = true));
+  try {
+    return await invoke(comando, args);
+  } finally {
+    botoes.forEach((b) => (b.disabled = false));
+  }
+}
+
 function botao(texto, aoClicar) {
   const b = document.createElement("button");
   b.type = "button";
@@ -132,13 +143,15 @@ const campoPeriodicidade = document.querySelector("#eq-periodicidade");
 const campoProxima = document.querySelector("#eq-proxima");
 
 // Sugere a próxima manutenção (aquisição + periodicidade); o usuário pode alterar.
-function ligarSugestao(idAquisicao, idPeriodicidade, idProxima) {
+// Base do cálculo: última manutenção (se houver) ou data de aquisição.
+function ligarSugestao(idAquisicao, idPeriodicidade, idProxima, obterUltima) {
   const aquisicao = document.querySelector(idAquisicao);
   const periodicidade = document.querySelector(idPeriodicidade);
   const proxima = document.querySelector(idProxima);
   function sugerir() {
-    if (aquisicao.value && periodicidade.value) {
-      proxima.value = somarMeses(aquisicao.value, Number(periodicidade.value));
+    const base = (obterUltima && obterUltima()) || aquisicao.value;
+    if (base && periodicidade.value) {
+      proxima.value = somarMeses(base, Number(periodicidade.value));
     }
   }
   aquisicao.addEventListener("input", sugerir);
@@ -146,7 +159,7 @@ function ligarSugestao(idAquisicao, idPeriodicidade, idProxima) {
   periodicidade.addEventListener("input", sugerir);
 }
 ligarSugestao("#eq-aquisicao", "#eq-periodicidade", "#eq-proxima");
-ligarSugestao("#ed-aquisicao", "#ed-periodicidade", "#ed-proxima");
+ligarSugestao("#ed-aquisicao", "#ed-periodicidade", "#ed-proxima", () => ultimaManutencaoEmEdicao);
 
 formEq.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -161,7 +174,7 @@ formEq.addEventListener("submit", async (e) => {
   };
 
   try {
-    await invoke("cadastrar_equipamento", { equipamento });
+    await invocarTravando("cadastrar_equipamento", { equipamento });
     formEq.reset();
     navegar("equipamentos");
   } catch (err) {
@@ -172,11 +185,13 @@ formEq.addEventListener("submit", async (e) => {
 
 // ---------- Editar equipamento ----------
 let idEmEdicao = null;
+let ultimaManutencaoEmEdicao = null;
 const formEd = document.querySelector("#form-editar");
 const msgEd = document.querySelector("#ed-msg");
 
 function abrirEdicao(e) {
   idEmEdicao = e.id_equipamento;
+  ultimaManutencaoEmEdicao = e.ultima_manutencao;
   document.querySelector("#ed-nome").value = e.nome;
   document.querySelector("#ed-local").value = e.localizacao;
   document.querySelector("#ed-aquisicao").value = e.data_aquisicao;
@@ -203,7 +218,7 @@ formEd.addEventListener("submit", async (ev) => {
   };
 
   try {
-    await invoke("atualizar_equipamento", { id: idEmEdicao, equipamento });
+    await invocarTravando("atualizar_equipamento", { id: idEmEdicao, equipamento });
     navegar("equipamentos");
   } catch (err) {
     msgEd.textContent = err;
@@ -232,7 +247,7 @@ document
 formDlg.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   try {
-    await invoke("desabilitar_equipamento", {
+    await invocarTravando("desabilitar_equipamento", {
       id: idParaDesabilitar,
       motivo: document.querySelector("#dlg-motivo").value,
     });
@@ -305,7 +320,7 @@ async function carregarPendencias() {
       });
 
       const tdAcao = document.createElement("td");
-      if (p.dias <= 0) {
+      if (p.dias <= 15) {
         tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
       }
       tr.appendChild(tdAcao);
@@ -374,7 +389,7 @@ formOs.addEventListener("submit", async (ev) => {
   };
 
   try {
-    await invoke("criar_os", { os });
+    await invocarTravando("criar_os", { os });
     formOs.reset();
     navegar("pendencias");
     mostrarAba("os");
@@ -456,7 +471,7 @@ formConc.addEventListener("submit", async (ev) => {
   msgConc.hidden = true;
   const comando = concluindo.tipo === "os" ? "concluir_os" : "concluir_manutencao";
   try {
-    await invoke(comando, {
+    await invocarTravando(comando, {
       id: concluindo.id,
       observacoes: document.querySelector("#conc-obs").value,
     });

@@ -35,6 +35,7 @@ pub struct Equipamento {
     pub periodicidade_meses: i64,
     pub ativo: bool,
     pub motivo_desabilitacao: Option<String>,
+    pub ultima_manutencao: Option<String>,
 }
 
 #[tauri::command]
@@ -42,9 +43,9 @@ pub fn cadastrar_equipamento(
     db: State<Db>,
     equipamento: NovoEquipamento,
 ) -> Result<(), String> {
-        validar(&equipamento)?;
-
     let conn = db.0.lock().map_err(|e| e.to_string())?;
+    validar(&equipamento, &hoje(&conn)?)?;
+
     conn.execute(
         "INSERT INTO equipamentos
             (nome, localizacao, data_aquisicao, proxima_manutencao, periodicidade_meses)
@@ -67,7 +68,9 @@ pub fn listar_equipamentos(db: State<Db>) -> Result<Vec<Equipamento>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id_equipamento, nome, localizacao, data_aquisicao, proxima_manutencao,
-                    periodicidade_meses, ativo, motivo_desabilitacao
+                    periodicidade_meses, ativo, motivo_desabilitacao,
+                    (SELECT MAX(m.data_conclusao) FROM manutencoes m
+                     WHERE m.id_equipamento = equipamentos.id_equipamento)
              FROM equipamentos ORDER BY nome",
         )
         .map_err(|e| e.to_string())?;
@@ -83,6 +86,7 @@ pub fn listar_equipamentos(db: State<Db>) -> Result<Vec<Equipamento>, String> {
                 periodicidade_meses: r.get(5)?,
                 ativo: r.get::<_, i64>(6)? == 1,
                 motivo_desabilitacao: r.get(7)?,
+                ultima_manutencao: r.get(8)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -92,12 +96,59 @@ pub fn listar_equipamentos(db: State<Db>) -> Result<Vec<Equipamento>, String> {
         .map_err(|e| e.to_string())
 }
 
-fn validar(e: &NovoEquipamento) -> Result<(), String> {
+// ---------- Datas ----------
+fn hoje(conn: &rusqlite::Connection) -> Result<String, String> {
+    conn.query_row("SELECT date('now', 'localtime')", [], |r| r.get(0))
+        .map_err(|e| e.to_string())
+}
+
+fn dias_no_mes(ano: i32, mes: u32) -> u32 {
+    match mes {
+        2 if (ano % 4 == 0 && ano % 100 != 0) || ano % 400 == 0 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+// Lê "AAAA-MM-DD" e devolve (ano, mês, dia), ou None se a data for inválida.
+fn partes_data(s: &str) -> Option<(i32, u32, u32)> {
+    let p: Vec<&str> = s.split('-').collect();
+    if p.len() != 3 || p[0].len() != 4 || p[1].len() != 2 || p[2].len() != 2 {
+        return None;
+    }
+    if !p.iter().all(|x| x.chars().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
+    let (ano, mes, dia) = (p[0].parse().ok()?, p[1].parse().ok()?, p[2].parse().ok()?);
+    if !(1..=12).contains(&mes) || dia == 0 || dia > dias_no_mes(ano, mes) {
+        return None;
+    }
+    Some((ano, mes, dia))
+}
+
+// Mesma regra do somarMeses do JS: 31/01 + 1 mês = 28/02 (ou 29/02).
+fn somar_meses(iso: &str, meses: i64) -> Result<String, String> {
+    let (ano, mes, dia) = partes_data(iso).ok_or("Data inválida.")?;
+    let total = ano as i64 * 12 + (mes as i64 - 1) + meses;
+    let novo_ano = (total / 12) as i32;
+    let novo_mes = (total % 12) as u32 + 1;
+    let novo_dia = dia.min(dias_no_mes(novo_ano, novo_mes));
+    Ok(format!("{novo_ano:04}-{novo_mes:02}-{novo_dia:02}"))
+}
+
+fn validar(e: &NovoEquipamento, hoje: &str) -> Result<(), String> {
     if e.nome.trim().is_empty() || e.localizacao.trim().is_empty() {
         return Err("Nome e localização são obrigatórios.".into());
     }
     if e.periodicidade_meses <= 0 {
         return Err("A periodicidade deve ser maior que zero.".into());
+    }
+    if partes_data(&e.data_aquisicao).is_none() || partes_data(&e.proxima_manutencao).is_none() {
+        return Err("Data inválida.".into());
+    }
+    if e.data_aquisicao.as_str() > hoje {
+        return Err("A data de aquisição não pode ser no futuro.".into());
     }
     if e.proxima_manutencao < e.data_aquisicao {
         return Err("A próxima manutenção não pode ser anterior à data de aquisição.".into());
@@ -111,13 +162,14 @@ pub fn atualizar_equipamento(
     id: i64,
     equipamento: NovoEquipamento,
 ) -> Result<(), String> {
-    validar(&equipamento)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    conn.execute(
+    validar(&equipamento, &hoje(&conn)?)?;
+
+    let alteradas = conn.execute(
         "UPDATE equipamentos
          SET nome = ?1, localizacao = ?2, data_aquisicao = ?3,
              proxima_manutencao = ?4, periodicidade_meses = ?5
-         WHERE id_equipamento = ?6",
+         WHERE id_equipamento = ?6 AND ativo = 1",
         params![
             equipamento.nome.trim(),
             equipamento.localizacao.trim(),
@@ -128,6 +180,9 @@ pub fn atualizar_equipamento(
         ],
     )
     .map_err(|e| e.to_string())?;
+    if alteradas == 0 {
+        return Err("Equipamento não encontrado ou desabilitado.".into());
+    }
     Ok(())
 }
 
@@ -239,18 +294,28 @@ pub fn concluir_manutencao(
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    let alteradas = tx
-        .execute(
-            "UPDATE equipamentos
-            SET proxima_manutencao = date('now', 'localtime', '+' || periodicidade_meses || ' months')
-            WHERE id_equipamento = ?1 AND ativo = 1
-               AND proxima_manutencao <= date('now', 'localtime')",
-            params![id],
-        )
-        .map_err(|e| e.to_string())?;
-    if alteradas == 0 {
-        return Err("Esta manutenção ainda não está pendente.".into());
-    }
+    let data_hoje = hoje(&tx)?;
+    let encontrado = tx.query_row(
+        "SELECT periodicidade_meses FROM equipamentos
+         WHERE id_equipamento = ?1 AND ativo = 1
+           AND proxima_manutencao <= date('now', 'localtime', '+15 days')",
+        params![id],
+        |r| r.get::<_, i64>(0),
+    );
+    let periodicidade = match encontrado {
+        Ok(p) => p,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            return Err("Esta manutenção ainda não pode ser concluída.".into())
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+
+    let proxima = somar_meses(&data_hoje, periodicidade)?;
+    tx.execute(
+        "UPDATE equipamentos SET proxima_manutencao = ?1 WHERE id_equipamento = ?2",
+        params![proxima, id],
+    )
+    .map_err(|e| e.to_string())?;
 
     let obs = observacoes.trim();
     let obs: Option<&str> = if obs.is_empty() { None } else { Some(obs) };
@@ -438,4 +503,21 @@ pub fn listar_historico_os(db: State<Db>) -> Result<Vec<OsConcluida>, String> {
     linhas
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    #[test]
+    fn datas() {
+        assert_eq!(somar_meses("2026-01-31", 1).unwrap(), "2026-02-28");
+        assert_eq!(somar_meses("2028-01-31", 1).unwrap(), "2028-02-29");
+        assert_eq!(somar_meses("2026-11-15", 3).unwrap(), "2027-02-15");
+        assert_eq!(somar_meses("2026-12-31", 12).unwrap(), "2027-12-31");
+        assert!(partes_data("2026-02-30").is_none());
+        assert!(partes_data("2026-13-01").is_none());
+        assert!(partes_data("lixo").is_none());
+        assert!(partes_data("2026-+1-01").is_none());
+        assert!(partes_data("2024-02-29").is_some());
+    }
 }
