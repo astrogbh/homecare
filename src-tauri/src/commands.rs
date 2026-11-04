@@ -242,13 +242,14 @@ pub fn concluir_manutencao(
     let alteradas = tx
         .execute(
             "UPDATE equipamentos
-             SET proxima_manutencao = date('now', 'localtime', '+' || periodicidade_meses || ' months')
-             WHERE id_equipamento = ?1 AND ativo = 1",
+            SET proxima_manutencao = date('now', 'localtime', '+' || periodicidade_meses || ' months')
+            WHERE id_equipamento = ?1 AND ativo = 1
+               AND proxima_manutencao <= date('now', 'localtime')",
             params![id],
         )
         .map_err(|e| e.to_string())?;
     if alteradas == 0 {
-        return Err("Equipamento não encontrado ou desabilitado.".into());
+        return Err("Esta manutenção ainda não está pendente.".into());
     }
 
     let obs = observacoes.trim();

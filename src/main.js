@@ -110,6 +110,7 @@ async function carregarEquipamentos() {
       if (e.ativo) {
         acoes.appendChild(botao("Editar", () => abrirEdicao(e)));
         acoes.appendChild(botao("Desabilitar", () => abrirDesabilitar(e)));
+        acoes.appendChild(botao("Abrir OS", () => abrirOsPara(e)));
       } else {
         acoes.appendChild(botao("Reabilitar", () => reabilitar(e)));
       }
@@ -131,16 +132,21 @@ const campoPeriodicidade = document.querySelector("#eq-periodicidade");
 const campoProxima = document.querySelector("#eq-proxima");
 
 // Sugere a próxima manutenção (aquisição + periodicidade); o usuário pode alterar.
-function sugerirProxima() {
-  if (campoAquisicao.value && campoPeriodicidade.value) {
-    campoProxima.value = somarMeses(
-      campoAquisicao.value,
-      Number(campoPeriodicidade.value)
-    );
+function ligarSugestao(idAquisicao, idPeriodicidade, idProxima) {
+  const aquisicao = document.querySelector(idAquisicao);
+  const periodicidade = document.querySelector(idPeriodicidade);
+  const proxima = document.querySelector(idProxima);
+  function sugerir() {
+    if (aquisicao.value && periodicidade.value) {
+      proxima.value = somarMeses(aquisicao.value, Number(periodicidade.value));
+    }
   }
+  aquisicao.addEventListener("input", sugerir);
+  aquisicao.addEventListener("change", sugerir);
+  periodicidade.addEventListener("input", sugerir);
 }
-campoAquisicao.addEventListener("change", sugerirProxima);
-campoPeriodicidade.addEventListener("input", sugerirProxima);
+ligarSugestao("#eq-aquisicao", "#eq-periodicidade", "#eq-proxima");
+ligarSugestao("#ed-aquisicao", "#ed-periodicidade", "#ed-proxima");
 
 formEq.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -299,7 +305,9 @@ async function carregarPendencias() {
       });
 
       const tdAcao = document.createElement("td");
-      tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
+      if (p.dias <= 0) {
+        tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
+      }
       tr.appendChild(tdAcao);
 
       corpo.appendChild(tr);
@@ -319,6 +327,13 @@ function mostrarAba(nome) {
 }
 
 // ---------- Nova OS ----------
+let osPreSelecionado = null;
+
+function abrirOsPara(e) {
+  osPreSelecionado = e.id_equipamento;
+  navegar("os");
+}
+
 const formOs = document.querySelector("#form-os");
 const msgOs = document.querySelector("#os-msg");
 const selectOs = document.querySelector("#os-equipamento");
@@ -342,6 +357,8 @@ async function carregarOpcoesOs() {
       op.textContent = `${e.nome} – ${e.localizacao}`;
       selectOs.appendChild(op);
     }
+    if (osPreSelecionado !== null) selectOs.value = osPreSelecionado;
+    osPreSelecionado = null;
   } catch (err) {
     alert("Erro ao carregar equipamentos: " + err);
   }
