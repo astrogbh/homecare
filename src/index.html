@@ -67,9 +67,38 @@
           </div>
         </div>
 
-        <!-- Histórico (Passo 9) -->
+        <!-- Histórico -->
         <div id="tela-historico" class="tela" hidden>
           <h1>Histórico</h1>
+          <div class="abas">
+            <button type="button" class="aba-hist ativa" data-hist="manutencoes">Manutenções realizadas</button>
+            <button type="button" class="aba-hist" data-hist="os">OS concluídas</button>
+          </div>
+
+          <div id="hist-manutencoes">
+            <p id="hist-man-aviso" class="aviso"></p>
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Equipamento</th><th>Localização</th><th>Concluída em</th><th>Observações</th>
+                </tr>
+              </thead>
+              <tbody id="lista-hist-man"></tbody>
+            </table>
+          </div>
+
+          <div id="hist-os" hidden>
+            <p id="hist-os-aviso" class="aviso"></p>
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Nº</th><th>Equipamento</th><th>Localização</th><th>Problema</th>
+                  <th>Aberta em</th><th>Concluída em</th><th>Observações</th>
+                </tr>
+              </thead>
+              <tbody id="lista-hist-os"></tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Lista de equipamentos -->

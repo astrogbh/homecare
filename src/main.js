@@ -15,7 +15,8 @@ function navegar(nome) {
   });
   if (nome === "equipamentos") carregarEquipamentos();
   if (nome === "pendencias") carregarPendencias();
-    if (nome === "os") carregarOpcoesOs();
+  if (nome === "os") carregarOpcoesOs();
+  if (nome === "historico") carregarHistorico();
 }
 
 document.querySelectorAll(".item-menu[data-tela]").forEach((b) => {
@@ -448,3 +449,62 @@ formConc.addEventListener("submit", async (ev) => {
     msgConc.hidden = false;
   }
 });
+
+// ---------- Histórico ----------
+document.querySelectorAll(".aba-hist").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".aba-hist").forEach((x) =>
+      x.classList.toggle("ativa", x === b)
+    );
+    document.querySelector("#hist-manutencoes").hidden = b.dataset.hist !== "manutencoes";
+    document.querySelector("#hist-os").hidden = b.dataset.hist !== "os";
+  });
+});
+
+function preencherTabela(corpo, linhas) {
+  corpo.innerHTML = "";
+  for (const celulas of linhas) {
+    const tr = document.createElement("tr");
+    for (const texto of celulas) {
+      const td = document.createElement("td");
+      td.textContent = texto;
+      tr.appendChild(td);
+    }
+    corpo.appendChild(tr);
+  }
+}
+
+async function carregarHistorico() {
+  try {
+    const manutencoes = await invoke("listar_historico_manutencoes");
+    document.querySelector("#hist-man-aviso").textContent =
+      manutencoes.length === 0 ? "Nenhuma manutenção realizada ainda." : "";
+    preencherTabela(
+      document.querySelector("#lista-hist-man"),
+      manutencoes.map((m) => [
+        m.equipamento,
+        m.localizacao,
+        formatarData(m.data_conclusao),
+        m.observacoes ?? "—",
+      ])
+    );
+
+    const oss = await invoke("listar_historico_os");
+    document.querySelector("#hist-os-aviso").textContent =
+      oss.length === 0 ? "Nenhuma OS concluída ainda." : "";
+    preencherTabela(
+      document.querySelector("#lista-hist-os"),
+      oss.map((o) => [
+        `#${o.id_os}`,
+        o.equipamento,
+        o.localizacao,
+        o.descricao_problema,
+        formatarData(o.data_abertura),
+        formatarData(o.data_conclusao),
+        o.observacoes ?? "—",
+      ])
+    );
+  } catch (err) {
+    alert("Erro ao carregar histórico: " + err);
+  }
+}

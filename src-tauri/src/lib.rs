@@ -28,9 +28,11 @@ pub fn run() {
             commands::concluir_manutencao,
             commands::criar_os,
             commands::listar_os_pendentes,
-            commands::concluir_os
+            commands::concluir_os,
+            commands::listar_historico_manutencoes,
+            commands::listar_historico_os
         ])
-        
+
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o aplicativo");
 }

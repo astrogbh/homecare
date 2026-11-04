@@ -358,3 +358,83 @@ pub fn concluir_os(db: State<Db>, id: i64, observacoes: String) -> Result<(), St
     }
     Ok(())
 }
+
+#[derive(Serialize)]
+pub struct ManutencaoRealizada {
+    pub equipamento: String,
+    pub localizacao: String,
+    pub data_conclusao: String,
+    pub observacoes: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct OsConcluida {
+    pub id_os: i64,
+    pub equipamento: String,
+    pub localizacao: String,
+    pub descricao_problema: String,
+    pub data_abertura: String,
+    pub data_conclusao: String,
+    pub observacoes: Option<String>,
+}
+
+#[tauri::command]
+pub fn listar_historico_manutencoes(db: State<Db>) -> Result<Vec<ManutencaoRealizada>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT e.nome, e.localizacao, m.data_conclusao, m.observacoes
+             FROM manutencoes m
+             JOIN equipamentos e ON e.id_equipamento = m.id_equipamento
+             ORDER BY m.data_conclusao DESC, m.id_manutencao DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let linhas = stmt
+        .query_map([], |r| {
+            Ok(ManutencaoRealizada {
+                equipamento: r.get(0)?,
+                localizacao: r.get(1)?,
+                data_conclusao: r.get(2)?,
+                observacoes: r.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    linhas
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn listar_historico_os(db: State<Db>) -> Result<Vec<OsConcluida>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT o.id_os, e.nome, e.localizacao, o.descricao_problema,
+                    o.data_abertura, COALESCE(o.data_conclusao, ''), o.observacoes
+             FROM ordens_servico o
+             JOIN equipamentos e ON e.id_equipamento = o.id_equipamento
+             WHERE o.status = 'Concluída'
+             ORDER BY o.data_conclusao DESC, o.id_os DESC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let linhas = stmt
+        .query_map([], |r| {
+            Ok(OsConcluida {
+                id_os: r.get(0)?,
+                equipamento: r.get(1)?,
+                localizacao: r.get(2)?,
+                descricao_problema: r.get(3)?,
+                data_abertura: r.get(4)?,
+                data_conclusao: r.get(5)?,
+                observacoes: r.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    linhas
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}

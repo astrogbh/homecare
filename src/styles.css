@@ -116,3 +116,8 @@ button.pequeno { padding: 5px 10px; font-size: 13px; }
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
 }
 .dialogo::backdrop { background: rgba(0, 0, 0, 0.4); }
+
+.aba-hist { background: #e6ebf2; color: #1f3a5f; }
+.aba-hist:hover { background: #d3dce8; }
+.aba-hist.ativa { background: #1f3a5f; color: #fff; }
+.aba-hist.ativa:hover { background: #1f3a5f; }
