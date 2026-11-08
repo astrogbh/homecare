@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS equipamentos (
     nome                TEXT NOT NULL,
     localizacao         TEXT NOT NULL,
     data_aquisicao      TEXT NOT NULL,
+    ultima_manutencao   TEXT,
     proxima_manutencao  TEXT NOT NULL,
     periodicidade_meses INTEGER NOT NULL CHECK (periodicidade_meses > 0),
     ativo               INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),

@@ -11,8 +11,10 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
+            
             let caminho = dir.join("homecare.db");
             println!("Banco em: {}", caminho.display());
+
             let conn = db::abrir(&caminho)?;
             app.manage(db::Db(Mutex::new(conn)));
             Ok(())

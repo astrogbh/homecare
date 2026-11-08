@@ -108,7 +108,7 @@
             <thead>
               <tr>
                 <th>Nome</th><th>Localização</th><th>Aquisição</th>
-                <th>Próx. manutenção</th><th>Periodicidade</th><th>Situação</th><th>Ações</th>
+                <th>Últ. manutenção</th><th>Próx. manutenção</th><th>Periodicidade</th><th>Situação</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="lista-equipamentos"></tbody>
@@ -122,6 +122,7 @@
             <label>Nome do item <input id="eq-nome" required /></label>
             <label>Localização na casa <input id="eq-local" required placeholder="Ex.: Cozinha" /></label>
             <label>Data de aquisição <input id="eq-aquisicao" type="date" required /></label>
+            <label>Última manutenção (opcional) <input id="eq-ultima" type="date" /></label>
             <label>Periodicidade da manutenção (meses)
               <input id="eq-periodicidade" type="number" min="1" required />
             </label>
@@ -151,6 +152,7 @@
             <label>Nome do item <input id="ed-nome" required /></label>
             <label>Localização na casa <input id="ed-local" required /></label>
             <label>Data de aquisição <input id="ed-aquisicao" type="date" required /></label>
+            <label>Última manutenção (opcional) <input id="ed-ultima" type="date" /></label>
             <label>Periodicidade da manutenção (meses)
               <input id="ed-periodicidade" type="number" min="1" required />
             </label>

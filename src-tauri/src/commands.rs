@@ -21,6 +21,7 @@ pub struct NovoEquipamento {
     pub nome: String,
     pub localizacao: String,
     pub data_aquisicao: String,
+    pub ultima_manutencao: Option<String>,
     pub proxima_manutencao: String,
     pub periodicidade_meses: i64,
 }
@@ -48,12 +49,14 @@ pub fn cadastrar_equipamento(
 
     conn.execute(
         "INSERT INTO equipamentos
-            (nome, localizacao, data_aquisicao, proxima_manutencao, periodicidade_meses)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+            (nome, localizacao, data_aquisicao, ultima_manutencao,
+             proxima_manutencao, periodicidade_meses)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             equipamento.nome.trim(),
             equipamento.localizacao.trim(),
             equipamento.data_aquisicao,
+            ultima(&equipamento),
             equipamento.proxima_manutencao,
             equipamento.periodicidade_meses
         ],
@@ -68,9 +71,7 @@ pub fn listar_equipamentos(db: State<Db>) -> Result<Vec<Equipamento>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT id_equipamento, nome, localizacao, data_aquisicao, proxima_manutencao,
-                    periodicidade_meses, ativo, motivo_desabilitacao,
-                    (SELECT MAX(m.data_conclusao) FROM manutencoes m
-                     WHERE m.id_equipamento = equipamentos.id_equipamento)
+                    periodicidade_meses, ativo, motivo_desabilitacao, ultima_manutencao
              FROM equipamentos ORDER BY nome",
         )
         .map_err(|e| e.to_string())?;
@@ -153,7 +154,29 @@ fn validar(e: &NovoEquipamento, hoje: &str) -> Result<(), String> {
     if e.proxima_manutencao < e.data_aquisicao {
         return Err("A próxima manutenção não pode ser anterior à data de aquisição.".into());
     }
+    if let Some(u) = ultima(e) {
+        if partes_data(u).is_none() {
+            return Err("Data inválida.".into());
+        }
+        if u < e.data_aquisicao.as_str() {
+            return Err("A última manutenção não pode ser anterior à data de aquisição.".into());
+        }
+        if u > hoje {
+            return Err("A última manutenção não pode ser no futuro.".into());
+        }
+        if e.proxima_manutencao.as_str() < u {
+            return Err("A próxima manutenção não pode ser anterior à última manutenção.".into());
+        }
+    }
     Ok(())
+}
+
+// Última manutenção informada no formulário; vazio conta como "nenhuma".
+fn ultima(e: &NovoEquipamento) -> Option<&str> {
+    e.ultima_manutencao
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
 }
 
 #[tauri::command]
@@ -167,13 +190,14 @@ pub fn atualizar_equipamento(
 
     let alteradas = conn.execute(
         "UPDATE equipamentos
-         SET nome = ?1, localizacao = ?2, data_aquisicao = ?3,
-             proxima_manutencao = ?4, periodicidade_meses = ?5
-         WHERE id_equipamento = ?6 AND ativo = 1",
+         SET nome = ?1, localizacao = ?2, data_aquisicao = ?3, ultima_manutencao = ?4,
+             proxima_manutencao = ?5, periodicidade_meses = ?6
+         WHERE id_equipamento = ?7 AND ativo = 1",
         params![
             equipamento.nome.trim(),
             equipamento.localizacao.trim(),
             equipamento.data_aquisicao,
+            ultima(&equipamento),
             equipamento.proxima_manutencao,
             equipamento.periodicidade_meses,
             id
@@ -240,18 +264,16 @@ pub struct ListaPendencias {
     pub itens: Vec<Pendencia>,
 }
 
-fn buscar_pendencias(
-    conn: &rusqlite::Connection,
-    condicao: &str,
-) -> Result<Vec<Pendencia>, String> {
-    let sql = format!(
-        "SELECT id_equipamento, nome, localizacao, proxima_manutencao,
-                CAST(julianday(proxima_manutencao) - julianday(date('now', 'localtime')) AS INTEGER)
-         FROM equipamentos
-         WHERE ativo = 1 AND {condicao}
-         ORDER BY proxima_manutencao, nome"
-    );
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+fn buscar_pendencias(conn: &rusqlite::Connection) -> Result<Vec<Pendencia>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id_equipamento, nome, localizacao, proxima_manutencao,
+                    CAST(julianday(proxima_manutencao) - julianday(date('now', 'localtime')) AS INTEGER)
+             FROM equipamentos
+             WHERE ativo = 1
+             ORDER BY proxima_manutencao, nome",
+        )
+        .map_err(|e| e.to_string())?;
     let linhas = stmt
         .query_map([], |r| {
             Ok(Pendencia {
@@ -271,18 +293,9 @@ fn buscar_pendencias(
 #[tauri::command]
 pub fn listar_pendencias(db: State<Db>) -> Result<ListaPendencias, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-
-    let pendentes = buscar_pendencias(&conn, "proxima_manutencao <= date('now', 'localtime')")?;
-    if !pendentes.is_empty() {
-        return Ok(ListaPendencias { tem_pendentes: true, itens: pendentes });
-    }
-
-    let proximas = buscar_pendencias(
-        &conn,
-        "proxima_manutencao > date('now', 'localtime')
-         AND proxima_manutencao <= date('now', 'localtime', '+6 months')",
-    )?;
-    Ok(ListaPendencias { tem_pendentes: false, itens: proximas })
+    let itens = buscar_pendencias(&conn)?;
+    let tem_pendentes = itens.iter().any(|p| p.dias <= 0);
+    Ok(ListaPendencias { tem_pendentes, itens })
 }
 
 #[tauri::command]
@@ -298,22 +311,23 @@ pub fn concluir_manutencao(
     let encontrado = tx.query_row(
         "SELECT periodicidade_meses FROM equipamentos
          WHERE id_equipamento = ?1 AND ativo = 1
-           AND proxima_manutencao <= date('now', 'localtime', '+15 days')",
+           AND proxima_manutencao <= date('now', 'localtime')",
         params![id],
         |r| r.get::<_, i64>(0),
     );
     let periodicidade = match encontrado {
         Ok(p) => p,
         Err(rusqlite::Error::QueryReturnedNoRows) => {
-            return Err("Esta manutenção ainda não pode ser concluída.".into())
+            return Err("Esta manutenção ainda não venceu.".into())
         }
         Err(e) => return Err(e.to_string()),
     };
 
     let proxima = somar_meses(&data_hoje, periodicidade)?;
     tx.execute(
-        "UPDATE equipamentos SET proxima_manutencao = ?1 WHERE id_equipamento = ?2",
-        params![proxima, id],
+        "UPDATE equipamentos SET proxima_manutencao = ?1, ultima_manutencao = ?2
+         WHERE id_equipamento = ?3",
+        params![proxima, data_hoje, id],
     )
     .map_err(|e| e.to_string())?;
 

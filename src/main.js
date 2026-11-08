@@ -105,6 +105,7 @@ async function carregarEquipamentos() {
         e.nome,
         e.localizacao,
         formatarData(e.data_aquisicao),
+        e.ultima_manutencao ? formatarData(e.ultima_manutencao) : "—",
         formatarData(e.proxima_manutencao),
         `${e.periodicidade_meses} meses`,
         e.ativo ? "Ativo" : `Desabilitado: ${e.motivo_desabilitacao}`,
@@ -142,24 +143,27 @@ const campoAquisicao = document.querySelector("#eq-aquisicao");
 const campoPeriodicidade = document.querySelector("#eq-periodicidade");
 const campoProxima = document.querySelector("#eq-proxima");
 
-// Sugere a próxima manutenção (aquisição + periodicidade); o usuário pode alterar.
-// Base do cálculo: última manutenção (se houver) ou data de aquisição.
-function ligarSugestao(idAquisicao, idPeriodicidade, idProxima, obterUltima) {
+// Sugere a próxima manutenção; o usuário pode alterar.
+// Base do cálculo: última manutenção (se preenchida) ou data de aquisição.
+function ligarSugestao(idAquisicao, idUltima, idPeriodicidade, idProxima) {
   const aquisicao = document.querySelector(idAquisicao);
+  const ultima = document.querySelector(idUltima);
   const periodicidade = document.querySelector(idPeriodicidade);
   const proxima = document.querySelector(idProxima);
   function sugerir() {
-    const base = (obterUltima && obterUltima()) || aquisicao.value;
+    const base = ultima.value || aquisicao.value;
     if (base && periodicidade.value) {
       proxima.value = somarMeses(base, Number(periodicidade.value));
     }
   }
-  aquisicao.addEventListener("input", sugerir);
-  aquisicao.addEventListener("change", sugerir);
+  for (const campo of [aquisicao, ultima]) {
+    campo.addEventListener("input", sugerir);
+    campo.addEventListener("change", sugerir);
+  }
   periodicidade.addEventListener("input", sugerir);
 }
-ligarSugestao("#eq-aquisicao", "#eq-periodicidade", "#eq-proxima");
-ligarSugestao("#ed-aquisicao", "#ed-periodicidade", "#ed-proxima", () => ultimaManutencaoEmEdicao);
+ligarSugestao("#eq-aquisicao", "#eq-ultima", "#eq-periodicidade", "#eq-proxima");
+ligarSugestao("#ed-aquisicao", "#ed-ultima", "#ed-periodicidade", "#ed-proxima");
 
 formEq.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -169,6 +173,7 @@ formEq.addEventListener("submit", async (e) => {
     nome: document.querySelector("#eq-nome").value,
     localizacao: document.querySelector("#eq-local").value,
     data_aquisicao: campoAquisicao.value,
+    ultima_manutencao: document.querySelector("#eq-ultima").value || null,
     proxima_manutencao: campoProxima.value,
     periodicidade_meses: Number(campoPeriodicidade.value),
   };
@@ -185,16 +190,15 @@ formEq.addEventListener("submit", async (e) => {
 
 // ---------- Editar equipamento ----------
 let idEmEdicao = null;
-let ultimaManutencaoEmEdicao = null;
 const formEd = document.querySelector("#form-editar");
 const msgEd = document.querySelector("#ed-msg");
 
 function abrirEdicao(e) {
   idEmEdicao = e.id_equipamento;
-  ultimaManutencaoEmEdicao = e.ultima_manutencao;
   document.querySelector("#ed-nome").value = e.nome;
   document.querySelector("#ed-local").value = e.localizacao;
   document.querySelector("#ed-aquisicao").value = e.data_aquisicao;
+  document.querySelector("#ed-ultima").value = e.ultima_manutencao ?? "";
   document.querySelector("#ed-periodicidade").value = e.periodicidade_meses;
   document.querySelector("#ed-proxima").value = e.proxima_manutencao;
   msgEd.hidden = true;
@@ -213,6 +217,7 @@ formEd.addEventListener("submit", async (ev) => {
     nome: document.querySelector("#ed-nome").value,
     localizacao: document.querySelector("#ed-local").value,
     data_aquisicao: document.querySelector("#ed-aquisicao").value,
+    ultima_manutencao: document.querySelector("#ed-ultima").value || null,
     proxima_manutencao: document.querySelector("#ed-proxima").value,
     periodicidade_meses: Number(document.querySelector("#ed-periodicidade").value),
   };
@@ -294,14 +299,12 @@ async function carregarPendencias() {
   try {
     const r = await invoke("listar_pendencias");
 
-    if (r.tem_pendentes) {
+    if (r.itens.length === 0) {
+      aviso.textContent = "Nenhum equipamento ativo cadastrado.";
+    } else if (r.tem_pendentes) {
       aviso.textContent = "";
-    } else if (r.itens.length > 0) {
-      aviso.textContent =
-        "Nenhuma manutenção pendente hoje. Próximas manutenções (6 meses):";
     } else {
-      aviso.textContent =
-        "Nenhuma manutenção pendente hoje nem prevista para os próximos 6 meses.";
+      aviso.textContent = "Nenhuma manutenção vencida. Próximas manutenções:";
     }
 
     for (const p of r.itens) {
@@ -320,7 +323,7 @@ async function carregarPendencias() {
       });
 
       const tdAcao = document.createElement("td");
-      if (p.dias <= 15) {
+      if (p.dias <= 0) {
         tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
       }
       tr.appendChild(tdAcao);
