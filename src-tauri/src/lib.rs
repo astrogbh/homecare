@@ -17,10 +17,12 @@ pub fn run() {
 
             let conn = db::abrir(&caminho)?;
             app.manage(db::Db(Mutex::new(conn)));
+            app.manage(commands::Sessao(Mutex::new(None)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::login,
+            commands::logout,
             commands::cadastrar_equipamento,
             commands::listar_equipamentos,
             commands::atualizar_equipamento,

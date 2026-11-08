@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS usuarios (
     id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario    TEXT NOT NULL UNIQUE,
-    senha      TEXT NOT NULL
+    senha      TEXT NOT NULL,
+    perfil     TEXT NOT NULL DEFAULT 'admin' CHECK (perfil IN ('admin', 'tecnico'))
 );
 
 CREATE TABLE IF NOT EXISTS equipamentos (
@@ -33,4 +34,5 @@ CREATE TABLE IF NOT EXISTS ordens_servico (
     observacoes        TEXT
 );
 
-INSERT OR IGNORE INTO usuarios (usuario, senha) VALUES ('admin', 'admin123');
+INSERT OR IGNORE INTO usuarios (usuario, senha, perfil) VALUES ('admin', 'admin123', 'admin');
+INSERT OR IGNORE INTO usuarios (usuario, senha, perfil) VALUES ('tecnico', 'tecnico123', 'tecnico');

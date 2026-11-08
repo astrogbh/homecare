@@ -23,7 +23,15 @@ document.querySelectorAll(".item-menu[data-tela]").forEach((b) => {
   b.addEventListener("click", () => navegar(b.dataset.tela));
 });
 
-document.querySelector("#btn-sair").addEventListener("click", () => {
+// O técnico só vê as Pendências (e conclui manutenções e OS a partir delas).
+function aplicarPerfil(perfil) {
+  document.querySelectorAll(".item-menu[data-tela]").forEach((b) => {
+    b.hidden = perfil === "tecnico" && b.dataset.tela !== "pendencias";
+  });
+}
+
+document.querySelector("#btn-sair").addEventListener("click", async () => {
+  await invoke("logout").catch(() => {});
   app.hidden = true;
   telaLogin.hidden = false;
   formLogin.reset();
@@ -38,8 +46,9 @@ formLogin.addEventListener("submit", async (e) => {
   const senha = document.querySelector("#login-senha").value;
 
   try {
-    const ok = await invoke("login", { usuario, senha });
-    if (ok) {
+    const perfil = await invoke("login", { usuario, senha });
+    if (perfil) {
+      aplicarPerfil(perfil);
       telaLogin.hidden = true;
       app.hidden = false;
       navegar("pendencias");

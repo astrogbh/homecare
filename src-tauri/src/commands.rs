@@ -1,19 +1,52 @@
 use serde::{Deserialize, Serialize};
 use crate::db::Db;
 use rusqlite::params;
+use std::sync::Mutex;
 use tauri::State;
 
+// ---------- Sessão e perfis ----------
+// Perfil do usuário logado ("admin" ou "tecnico"). None = ninguém logado.
+pub struct Sessao(pub Mutex<Option<String>>);
+
+const ADMIN: &[&str] = &["admin"];
+const ADMIN_E_TECNICO: &[&str] = &["admin", "tecnico"];
+
+// Recusa o comando se ninguém estiver logado ou se o perfil não tiver permissão.
+fn exigir(sessao: &State<Sessao>, permitidos: &[&str]) -> Result<(), String> {
+    let atual = sessao.0.lock().map_err(|e| e.to_string())?;
+    match atual.as_deref() {
+        None => Err("Faça login para continuar.".into()),
+        Some(p) if permitidos.contains(&p) => Ok(()),
+        Some(_) => Err("Seu usuário não tem permissão para esta ação.".into()),
+    }
+}
+
 #[tauri::command]
-pub fn login(db: State<Db>, usuario: String, senha: String) -> Result<bool, String> {
+pub fn login(
+    db: State<Db>,
+    sessao: State<Sessao>,
+    usuario: String,
+    senha: String,
+) -> Result<Option<String>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let total: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM usuarios WHERE usuario = ?1 AND senha = ?2",
-            params![usuario, senha],
-            |linha| linha.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    Ok(total > 0)
+    let encontrado = conn.query_row(
+        "SELECT perfil FROM usuarios WHERE usuario = ?1 AND senha = ?2",
+        params![usuario, senha],
+        |linha| linha.get::<_, String>(0),
+    );
+    let perfil = match encontrado {
+        Ok(p) => Some(p),
+        Err(rusqlite::Error::QueryReturnedNoRows) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    *sessao.0.lock().map_err(|e| e.to_string())? = perfil.clone();
+    Ok(perfil)
+}
+
+#[tauri::command]
+pub fn logout(sessao: State<Sessao>) -> Result<(), String> {
+    *sessao.0.lock().map_err(|e| e.to_string())? = None;
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -42,8 +75,10 @@ pub struct Equipamento {
 #[tauri::command]
 pub fn cadastrar_equipamento(
     db: State<Db>,
+    sessao: State<Sessao>,
     equipamento: NovoEquipamento,
 ) -> Result<(), String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     validar(&equipamento, &hoje(&conn)?)?;
 
@@ -66,7 +101,8 @@ pub fn cadastrar_equipamento(
 }
 
 #[tauri::command]
-pub fn listar_equipamentos(db: State<Db>) -> Result<Vec<Equipamento>, String> {
+pub fn listar_equipamentos(db: State<Db>, sessao: State<Sessao>) -> Result<Vec<Equipamento>, String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
@@ -182,9 +218,11 @@ fn ultima(e: &NovoEquipamento) -> Option<&str> {
 #[tauri::command]
 pub fn atualizar_equipamento(
     db: State<Db>,
+    sessao: State<Sessao>,
     id: i64,
     equipamento: NovoEquipamento,
 ) -> Result<(), String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     validar(&equipamento, &hoje(&conn)?)?;
 
@@ -211,7 +249,13 @@ pub fn atualizar_equipamento(
 }
 
 #[tauri::command]
-pub fn desabilitar_equipamento(db: State<Db>, id: i64, motivo: String) -> Result<(), String> {
+pub fn desabilitar_equipamento(
+    db: State<Db>,
+    sessao: State<Sessao>,
+    id: i64,
+    motivo: String,
+) -> Result<(), String> {
+    exigir(&sessao, ADMIN)?;
     if motivo.trim().is_empty() {
         return Err("Descreva o motivo da desabilitação.".into());
     }
@@ -239,7 +283,8 @@ pub fn desabilitar_equipamento(db: State<Db>, id: i64, motivo: String) -> Result
 }
 
 #[tauri::command]
-pub fn reabilitar_equipamento(db: State<Db>, id: i64) -> Result<(), String> {
+pub fn reabilitar_equipamento(db: State<Db>, sessao: State<Sessao>, id: i64) -> Result<(), String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "UPDATE equipamentos SET ativo = 1, motivo_desabilitacao = NULL
@@ -291,7 +336,8 @@ fn buscar_pendencias(conn: &rusqlite::Connection) -> Result<Vec<Pendencia>, Stri
 }
 
 #[tauri::command]
-pub fn listar_pendencias(db: State<Db>) -> Result<ListaPendencias, String> {
+pub fn listar_pendencias(db: State<Db>, sessao: State<Sessao>) -> Result<ListaPendencias, String> {
+    exigir(&sessao, ADMIN_E_TECNICO)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let itens = buscar_pendencias(&conn)?;
     let tem_pendentes = itens.iter().any(|p| p.dias <= 0);
@@ -301,9 +347,11 @@ pub fn listar_pendencias(db: State<Db>) -> Result<ListaPendencias, String> {
 #[tauri::command]
 pub fn concluir_manutencao(
     db: State<Db>,
+    sessao: State<Sessao>,
     id: i64,
     observacoes: String,
 ) -> Result<(), String> {
+    exigir(&sessao, ADMIN_E_TECNICO)?;
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
@@ -359,7 +407,8 @@ pub struct OsPendente {
 }
 
 #[tauri::command]
-pub fn criar_os(db: State<Db>, os: NovaOs) -> Result<(), String> {
+pub fn criar_os(db: State<Db>, sessao: State<Sessao>, os: NovaOs) -> Result<(), String> {
+    exigir(&sessao, ADMIN)?;
     if os.descricao_problema.trim().is_empty() {
         return Err("Descreva o que aconteceu com o equipamento.".into());
     }
@@ -385,7 +434,8 @@ pub fn criar_os(db: State<Db>, os: NovaOs) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn listar_os_pendentes(db: State<Db>) -> Result<Vec<OsPendente>, String> {
+pub fn listar_os_pendentes(db: State<Db>, sessao: State<Sessao>) -> Result<Vec<OsPendente>, String> {
+    exigir(&sessao, ADMIN_E_TECNICO)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
@@ -417,7 +467,13 @@ pub fn listar_os_pendentes(db: State<Db>) -> Result<Vec<OsPendente>, String> {
 }
 
 #[tauri::command]
-pub fn concluir_os(db: State<Db>, id: i64, observacoes: String) -> Result<(), String> {
+pub fn concluir_os(
+    db: State<Db>,
+    sessao: State<Sessao>,
+    id: i64,
+    observacoes: String,
+) -> Result<(), String> {
+    exigir(&sessao, ADMIN_E_TECNICO)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     let obs = observacoes.trim();
@@ -459,7 +515,11 @@ pub struct OsConcluida {
 }
 
 #[tauri::command]
-pub fn listar_historico_manutencoes(db: State<Db>) -> Result<Vec<ManutencaoRealizada>, String> {
+pub fn listar_historico_manutencoes(
+    db: State<Db>,
+    sessao: State<Sessao>,
+) -> Result<Vec<ManutencaoRealizada>, String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
@@ -487,7 +547,8 @@ pub fn listar_historico_manutencoes(db: State<Db>) -> Result<Vec<ManutencaoReali
 }
 
 #[tauri::command]
-pub fn listar_historico_os(db: State<Db>) -> Result<Vec<OsConcluida>, String> {
+pub fn listar_historico_os(db: State<Db>, sessao: State<Sessao>) -> Result<Vec<OsConcluida>, String> {
+    exigir(&sessao, ADMIN)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(

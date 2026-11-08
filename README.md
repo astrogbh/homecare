@@ -125,13 +125,16 @@ Ao salvar arquivos de `src/`, a interface recarrega. Ao alterar arquivos de `src
  
 ## Primeiro acesso
  
-O banco já é criado com um usuário inicial:
+O banco já é criado com dois usuários:
  
-| Usuário | Senha |
-|---|---|
-| `admin` | `admin123` |
+| Usuário | Senha | Perfil | O que pode fazer |
+|---|---|---|---|
+| `admin` | `admin123` | Administrador | Tudo |
+| `tecnico` | `tecnico123` | Técnico | Ver as pendências e concluir manutenções e OS |
  
-Para trocar esse usuário, edite a última linha de `src-tauri/src/schema.sql` **antes da primeira execução** (ou apague o banco, veja abaixo).
+O técnico não vê as telas de Histórico, Equipamentos, Novo equipamento e Nova OS. A permissão também é conferida no Rust: os comandos dessas telas recusam o pedido se o usuário logado for técnico.
+ 
+Para trocar esses usuários, edite as duas últimas linhas de `src-tauri/src/schema.sql` **antes da primeira execução** (ou apague o banco, veja abaixo).
  
 ## Gerar o instalador
  
