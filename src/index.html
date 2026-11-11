@@ -8,17 +8,30 @@
     <title>HomeCare</title>
   </head>
   <body>
+    <!-- Login -->
     <main id="tela-login" class="tela-login">
-      <form id="form-login" class="cartao">
+      <form id="form-login" class="cartao-login">
         <h1>HomeCare</h1>
-        <label>Usuário <input id="login-usuario" required autofocus /></label>
-        <label>Senha <input id="login-senha" type="password" required /></label>
+        <label>Usuário
+          <input id="login-usuario" placeholder="Digite seu usuário..." required autofocus />
+        </label>
+        <label>Senha
+          <span class="campo-senha">
+            <input id="login-senha" type="password" placeholder="Digite sua senha..." required />
+            <button type="button" id="btn-olho" class="olho" title="Mostrar senha" aria-label="Mostrar senha">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path d="M12 5C6.5 5 2.7 9.2 1.5 12c1.2 2.8 5 7 10.5 7s9.3-4.2 10.5-7C21.3 9.2 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" fill="currentColor"/>
+              </svg>
+            </button>
+          </span>
+        </label>
         <p id="login-erro" class="erro" hidden></p>
-        <button type="submit">Entrar</button>
+        <button type="submit" class="btn-continuar">Continuar</button>
       </form>
     </main>
 
     <div id="app" class="app" hidden>
+      <!-- Menu lateral -->
       <aside class="menu">
         <h2>HomeCare</h2>
         <nav>
@@ -27,8 +40,14 @@
           <button class="item-menu" data-tela="equipamentos">Equipamentos</button>
           <button class="item-menu" data-tela="cadastro">Novo equipamento</button>
           <button class="item-menu" data-tela="os">Nova OS</button>
+          <button class="item-menu" data-tela="sobre">Sobre HomeCare</button>
         </nav>
-        <button id="btn-sair" class="item-menu">Sair</button>
+        <button id="btn-sair" class="sair">
+          Sair
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" fill="currentColor"/>
+          </svg>
+        </button>
       </aside>
 
       <section class="conteudo">
@@ -36,34 +55,42 @@
         <div id="tela-pendencias" class="tela" hidden>
           <h1>Pendências</h1>
           <div class="abas">
-            <button type="button" class="aba ativa" data-aba="manutencoes">Manutenções</button>
-            <button type="button" class="aba" data-aba="os">Ordens de serviço</button>
+            <button type="button" class="aba ativa" data-aba="manutencoes">Manutenção</button>
+            <button type="button" class="aba" data-aba="os">Ordem de serviço</button>
           </div>
 
           <div id="aba-manutencoes">
+            <div class="filtro">
+              <button type="button" class="opcao-filtro" data-filtro="prazo">No Prazo</button>
+              <button type="button" class="opcao-filtro ativa" data-filtro="pendentes">Pendentes</button>
+            </div>
             <p id="pend-aviso" class="aviso"></p>
-            <table class="tabela">
-              <thead>
-                <tr>
-                  <th>Equipamento</th><th>Localização</th><th>Data prevista</th>
-                  <th>Situação</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="lista-pendencias"></tbody>
-            </table>
+            <div class="caixa-tabela">
+              <table class="tabela">
+                <thead>
+                  <tr>
+                    <th>Equipamento</th><th>Localização</th><th>Data prevista</th>
+                    <th>Situação</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="lista-pendencias"></tbody>
+              </table>
+            </div>
           </div>
 
           <div id="aba-os" hidden>
             <p id="os-aviso" class="aviso"></p>
-            <table class="tabela">
-              <thead>
-                <tr>
-                  <th>Nº</th><th>Equipamento</th><th>Localização</th>
-                  <th>Problema</th><th>Aberta em</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="lista-os"></tbody>
-            </table>
+            <div class="caixa-tabela">
+              <table class="tabela">
+                <thead>
+                  <tr>
+                    <th>Nº</th><th>Equipamento</th><th>Localização</th>
+                    <th>Problema</th><th>Aberta em</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="lista-os"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -71,130 +98,185 @@
         <div id="tela-historico" class="tela" hidden>
           <h1>Histórico</h1>
           <div class="abas">
-            <button type="button" class="aba-hist ativa" data-hist="manutencoes">Manutenções realizadas</button>
+            <button type="button" class="aba-hist ativa" data-hist="manutencoes">Manutenções Realizadas</button>
             <button type="button" class="aba-hist" data-hist="os">OS concluídas</button>
           </div>
 
           <div id="hist-manutencoes">
             <p id="hist-man-aviso" class="aviso"></p>
-            <table class="tabela">
-              <thead>
-                <tr>
-                  <th>Equipamento</th><th>Localização</th><th>Concluída em</th><th>Observações</th>
-                </tr>
-              </thead>
-              <tbody id="lista-hist-man"></tbody>
-            </table>
+            <div class="caixa-tabela">
+              <table class="tabela">
+                <thead>
+                  <tr>
+                    <th>Equipamento</th><th>Localização</th><th>Concluída em</th><th>Observações</th>
+                  </tr>
+                </thead>
+                <tbody id="lista-hist-man"></tbody>
+              </table>
+            </div>
           </div>
 
           <div id="hist-os" hidden>
             <p id="hist-os-aviso" class="aviso"></p>
-            <table class="tabela">
-              <thead>
-                <tr>
-                  <th>Nº</th><th>Equipamento</th><th>Localização</th><th>Problema</th>
-                  <th>Aberta em</th><th>Concluída em</th><th>Observações</th>
-                </tr>
-              </thead>
-              <tbody id="lista-hist-os"></tbody>
-            </table>
+            <div class="caixa-tabela">
+              <table class="tabela">
+                <thead>
+                  <tr>
+                    <th>Nº</th><th>Equipamento</th><th>Localização</th><th>Problema</th>
+                    <th>Aberta em</th><th>Concluída em</th><th>Observações</th>
+                  </tr>
+                </thead>
+                <tbody id="lista-hist-os"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         <!-- Lista de equipamentos -->
         <div id="tela-equipamentos" class="tela" hidden>
           <h1>Equipamentos</h1>
-          <table class="tabela">
-            <thead>
-              <tr>
-                <th>Nome</th><th>Localização</th><th>Aquisição</th>
-                <th>Últ. manutenção</th><th>Próx. manutenção</th><th>Periodicidade</th><th>Situação</th><th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="lista-equipamentos"></tbody>
-          </table>
+          <div class="caixa-tabela">
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Nome</th><th>Localização</th><th>Aquisição</th>
+                  <th>Últ. manutenção</th><th>Próx. manutenção</th><th>Periodicidade</th><th>Situação</th><th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="lista-equipamentos"></tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Cadastro de equipamento -->
         <div id="tela-cadastro" class="tela" hidden>
-          <h1>Novo equipamento</h1>
-          <form id="form-equipamento" class="formulario">
-            <label>Nome do item <input id="eq-nome" required /></label>
-            <label>Localização na casa <input id="eq-local" required placeholder="Ex.: Cozinha" /></label>
-            <label>Data de aquisição <input id="eq-aquisicao" type="date" required /></label>
-            <label>Última manutenção (opcional) <input id="eq-ultima" type="date" /></label>
-            <label>Periodicidade da manutenção (meses)
-              <input id="eq-periodicidade" type="number" min="1" required />
-            </label>
-            <label>Próxima manutenção <input id="eq-proxima" type="date" required /></label>
-            <p id="eq-msg" class="erro" hidden></p>
-            <button type="submit">Salvar</button>
+          <h1>Cadastro de Equipamento</h1>
+          <form id="form-equipamento" class="formulario formulario-equip">
+            <div class="campos">
+              <label>Nome do Item <input id="eq-nome" class="largo" required /></label>
+              <label>Localização na Casa <input id="eq-local" class="medio" required placeholder="Ex.: Cozinha" /></label>
+              <label>Data de aquisição <input id="eq-aquisicao" class="data" type="date" required /></label>
+              <label>Última Manutenção (opcional) <input id="eq-ultima" class="data" type="date" /></label>
+              <label>Periodicidade da manutenção (meses)
+                <input id="eq-periodicidade" class="medio" type="number" min="1" required />
+              </label>
+              <label>Próxima manutenção <input id="eq-proxima" class="data" type="date" required /></label>
+              <p id="eq-msg" class="erro" hidden></p>
+            </div>
+            <div class="botoes">
+              <button type="submit">Salvar</button>
+              <button type="button" id="eq-cancelar">Cancelar</button>
+            </div>
           </form>
         </div>
 
         <!-- Nova OS -->
         <div id="tela-os" class="tela" hidden>
-          <h1>Nova ordem de serviço</h1>
-          <form id="form-os" class="formulario">
-            <label>Equipamento <select id="os-equipamento" required></select></label>
-            <label>O que aconteceu?
-              <textarea id="os-descricao" rows="5" required></textarea>
+          <h1>Nova Ordem de Serviço</h1>
+          <form id="form-os" class="formulario formulario-os">
+            <label>Selecione o Equipamento <select id="os-equipamento" required></select></label>
+            <label>Descrição do Problema
+              <textarea id="os-descricao" rows="8" maxlength="500" required></textarea>
             </label>
+            <span id="os-contador" class="contador">0/500</span>
             <p id="os-msg" class="erro" hidden></p>
-            <button type="submit">Abrir OS</button>
+            <div class="botoes">
+              <button type="button" id="os-cancelar">Cancelar</button>
+              <button type="submit">Criar OS</button>
+            </div>
           </form>
         </div>
 
         <!-- Editar equipamento -->
         <div id="tela-editar" class="tela" hidden>
-          <h1>Editar equipamento</h1>
-          <form id="form-editar" class="formulario">
-            <label>Nome do item <input id="ed-nome" required /></label>
-            <label>Localização na casa <input id="ed-local" required /></label>
-            <label>Data de aquisição <input id="ed-aquisicao" type="date" required /></label>
-            <label>Última manutenção (opcional) <input id="ed-ultima" type="date" /></label>
-            <label>Periodicidade da manutenção (meses)
-              <input id="ed-periodicidade" type="number" min="1" required />
-            </label>
-            <label>Próxima manutenção <input id="ed-proxima" type="date" required /></label>
-            <p id="ed-msg" class="erro" hidden></p>
+          <h1>Editar Equipamento</h1>
+          <form id="form-editar" class="formulario formulario-equip">
+            <div class="campos">
+              <label>Nome do Item <input id="ed-nome" class="largo" required /></label>
+              <label>Localização na Casa <input id="ed-local" class="medio" required placeholder="Ex.: Cozinha" /></label>
+              <label>Data de aquisição <input id="ed-aquisicao" class="data" type="date" required /></label>
+              <label>Última Manutenção (opcional) <input id="ed-ultima" class="data" type="date" /></label>
+              <label>Periodicidade da manutenção (meses)
+                <input id="ed-periodicidade" class="medio" type="number" min="1" required />
+              </label>
+              <label>Próxima manutenção <input id="ed-proxima" class="data" type="date" required /></label>
+              <p id="ed-msg" class="erro" hidden></p>
+            </div>
             <div class="botoes">
               <button type="submit">Salvar</button>
-              <button type="button" id="ed-cancelar" class="secundario">Cancelar</button>
+              <button type="button" id="ed-cancelar">Cancelar</button>
             </div>
           </form>
         </div>
 
-        <!-- Concluir manutenção / OS -->
-        <div id="tela-concluir" class="tela" hidden>
-          <h1 id="conc-titulo">Concluir manutenção</h1>
-          <p id="conc-resumo" class="aviso"></p>
-          <form id="form-concluir" class="formulario">
-            <label>Imprevistos ou observações
-              <textarea id="conc-obs" rows="5"></textarea>
-            </label>
-            <p id="conc-msg" class="erro" hidden></p>
-            <div class="botoes">
-              <button type="submit">Concluir</button>
-              <button type="button" id="conc-cancelar" class="secundario">Cancelar</button>
+        <!-- Sobre -->
+        <div id="tela-sobre" class="tela" hidden>
+          <div class="sobre">
+            <div class="sobre-logo">
+              <img src="assets/logo.svg" alt="Logo do HomeCare" />
             </div>
-          </form>
+            <div class="sobre-texto">
+              <h1>Sobre o HomeCare</h1>
+              <p>
+                O HomeCare é uma agenda de manutenção para a sua casa. Cada equipamento é
+                cadastrado com a frequência de manutenção, e o sistema calcula e mostra o que
+                está vencido e o que vem a seguir. Consertos imprevistos viram ordens de serviço,
+                e tudo o que foi feito fica guardado no histórico.
+              </p>
+            </div>
+            <div class="sobre-bloco">
+              <h2>Finalidades</h2>
+              <ol>
+                <li>Lembrar as manutenções periódicas dos equipamentos da casa.</li>
+                <li>Mostrar o que está atrasado e o que vence a seguir.</li>
+                <li>Registrar consertos imprevistos em ordens de serviço.</li>
+                <li>Guardar o histórico de tudo o que foi feito.</li>
+              </ol>
+              <h2>Informações do sistema</h2>
+              <p>Versão: <span id="sobre-versao">0.1.0</span></p>
+              <p>Os dados ficam salvos apenas neste computador.</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>
 
-    <!-- Diálogo de desabilitar equipamento -->
+    <!-- Janela: concluir manutenção / OS -->
+    <dialog id="dlg-concluir" class="dialogo">
+      <form id="form-concluir" class="formulario">
+        <div class="dialogo-topo">
+          <h2 id="conc-titulo">Concluir Manutenção</h2>
+          <button type="button" id="conc-fechar" class="fechar" aria-label="Fechar">x</button>
+        </div>
+        <div id="conc-resumo" class="resumo"></div>
+        <label>Observações/Imprevistos
+          <textarea id="conc-obs" rows="4" maxlength="500"></textarea>
+        </label>
+        <span id="conc-contador" class="contador">0/500</span>
+        <p id="conc-msg" class="erro" hidden></p>
+        <div class="botoes">
+          <button type="button" id="conc-cancelar">Cancelar</button>
+          <button type="submit">Concluir</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Janela: desabilitar equipamento -->
     <dialog id="dlg-desabilitar" class="dialogo">
       <form id="form-desabilitar" class="formulario">
-        <h2>Desabilitar equipamento</h2>
-        <p id="dlg-nome"></p>
-        <label>Descreva o ocorrido
-          <textarea id="dlg-motivo" rows="4" required></textarea>
+        <div class="dialogo-topo">
+          <h2>Desabilitar Equipamento</h2>
+          <button type="button" id="dlg-fechar" class="fechar" aria-label="Fechar">x</button>
+        </div>
+        <p id="dlg-nome" class="dlg-nome"></p>
+        <label>Descreva o Ocorrido
+          <textarea id="dlg-motivo" rows="4" maxlength="500" required></textarea>
         </label>
+        <span id="dlg-contador" class="contador">0/500</span>
         <p id="dlg-msg" class="erro" hidden></p>
         <div class="botoes">
+          <button type="button" id="dlg-cancelar">Cancelar</button>
           <button type="submit">Desabilitar</button>
-          <button type="button" id="dlg-cancelar" class="secundario">Cancelar</button>
         </div>
       </form>
     </dialog>
