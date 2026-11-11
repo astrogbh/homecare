@@ -23,10 +23,11 @@ document.querySelectorAll(".item-menu[data-tela]").forEach((b) => {
   b.addEventListener("click", () => navegar(b.dataset.tela));
 });
 
-// O técnico só vê as Pendências (e conclui manutenções e OS a partir delas).
+// O técnico só vê as Pendências (e conclui manutenções e OS a partir delas) e o Sobre.
 function aplicarPerfil(perfil) {
+  const liberadas = ["pendencias", "sobre"];
   document.querySelectorAll(".item-menu[data-tela]").forEach((b) => {
-    b.hidden = perfil === "tecnico" && b.dataset.tela !== "pendencias";
+    b.hidden = perfil === "tecnico" && !liberadas.includes(b.dataset.tela);
   });
 }
 
@@ -62,6 +63,12 @@ formLogin.addEventListener("submit", async (e) => {
   }
 });
 
+// Botão do olho: mostra/esconde a senha.
+document.querySelector("#btn-olho").addEventListener("click", () => {
+  const campo = document.querySelector("#login-senha");
+  campo.type = campo.type === "password" ? "text" : "password";
+});
+
 // ---------- Utilidades ----------
 function formatarData(iso) {
   const [a, m, d] = iso.split("-");
@@ -93,9 +100,30 @@ function botao(texto, aoClicar) {
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = texto;
-  b.className = "secundario pequeno";
+  b.className = "pequeno";
   b.addEventListener("click", aoClicar);
   return b;
+}
+
+// Contador de caracteres "0/500" embaixo das caixas de texto.
+function ligarContador(idTexto, idContador) {
+  const texto = document.querySelector(idTexto);
+  const contador = document.querySelector(idContador);
+  const atualizar = () => {
+    contador.textContent = `${texto.value.length}/${texto.maxLength}`;
+  };
+  texto.addEventListener("input", atualizar);
+  return atualizar;
+}
+const atualizarContadorOs = ligarContador("#os-descricao", "#os-contador");
+const atualizarContadorConc = ligarContador("#conc-obs", "#conc-contador");
+const atualizarContadorDlg = ligarContador("#dlg-motivo", "#dlg-contador");
+
+// Cria um parágrafo com texto (usado nos resumos das janelas).
+function paragrafo(texto) {
+  const p = document.createElement("p");
+  p.textContent = texto;
+  return p;
 }
 
 // ---------- Lista de equipamentos ----------
@@ -197,6 +225,13 @@ formEq.addEventListener("submit", async (e) => {
   }
 });
 
+// Cancelar do cadastro: limpa o formulário e volta para a lista.
+document.querySelector("#eq-cancelar").addEventListener("click", () => {
+  formEq.reset();
+  msgEq.hidden = true;
+  navegar("equipamentos");
+});
+
 // ---------- Editar equipamento ----------
 let idEmEdicao = null;
 const formEd = document.querySelector("#form-editar");
@@ -248,15 +283,15 @@ let idParaDesabilitar = null;
 
 function abrirDesabilitar(e) {
   idParaDesabilitar = e.id_equipamento;
-  document.querySelector("#dlg-nome").textContent = e.nome;
+  document.querySelector("#dlg-nome").textContent = `${e.nome} – ${e.localizacao}`;
   document.querySelector("#dlg-motivo").value = "";
+  atualizarContadorDlg();
   msgDlg.hidden = true;
   dlg.showModal();
 }
 
-document
-  .querySelector("#dlg-cancelar")
-  .addEventListener("click", () => dlg.close());
+document.querySelector("#dlg-cancelar").addEventListener("click", () => dlg.close());
+document.querySelector("#dlg-fechar").addEventListener("click", () => dlg.close());
 
 formDlg.addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -283,13 +318,27 @@ async function reabilitar(e) {
 }
 
 // ---------- Pendências ----------
+// Abas: Manutenção / Ordem de serviço.
+function mostrarAba(nome) {
+  document.querySelectorAll(".aba").forEach((x) =>
+    x.classList.toggle("ativa", x.dataset.aba === nome)
+  );
+  document.querySelector("#aba-manutencoes").hidden = nome !== "manutencoes";
+  document.querySelector("#aba-os").hidden = nome !== "os";
+}
+
 document.querySelectorAll(".aba").forEach((b) => {
+  b.addEventListener("click", () => mostrarAba(b.dataset.aba));
+});
+
+// Filtro da aba Manutenção: "pendentes" (vencidas, dias <= 0) ou "prazo" (dias > 0).
+let filtroPendencias = "pendentes";
+let pendenciasCache = [];
+
+document.querySelectorAll(".opcao-filtro").forEach((b) => {
   b.addEventListener("click", () => {
-    document.querySelectorAll(".aba").forEach((x) =>
-      x.classList.toggle("ativa", x === b)
-    );
-    document.querySelector("#aba-manutencoes").hidden = b.dataset.aba !== "manutencoes";
-    document.querySelector("#aba-os").hidden = b.dataset.aba !== "os";
+    filtroPendencias = b.dataset.filtro;
+    mostrarPendencias();
   });
 });
 
@@ -300,57 +349,62 @@ function textoSituacao(dias) {
 }
 
 async function carregarPendencias() {
-  const corpo = document.querySelector("#lista-pendencias");
-  const aviso = document.querySelector("#pend-aviso");
-  corpo.innerHTML = "";
-  carregarOsPendentes(); 
-
+  carregarOsPendentes();
   try {
     const r = await invoke("listar_pendencias");
-
-    if (r.itens.length === 0) {
-      aviso.textContent = "Nenhum equipamento ativo cadastrado.";
-    } else if (r.tem_pendentes) {
-      aviso.textContent = "";
-    } else {
-      aviso.textContent = "Nenhuma manutenção vencida. Próximas manutenções:";
-    }
-
-    for (const p of r.itens) {
-      const tr = document.createElement("tr");
-      const celulas = [
-        p.nome,
-        p.localizacao,
-        formatarData(p.proxima_manutencao),
-        textoSituacao(p.dias),
-      ];
-      celulas.forEach((texto, i) => {
-        const td = document.createElement("td");
-        td.textContent = texto;
-        if (i === 3 && p.dias < 0) td.classList.add("atrasada");
-        tr.appendChild(td);
-      });
-
-      const tdAcao = document.createElement("td");
-      if (p.dias <= 0) {
-        tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
-      }
-      tr.appendChild(tdAcao);
-
-      corpo.appendChild(tr);
-    }
+    pendenciasCache = r.itens;
+    mostrarPendencias();
   } catch (err) {
     alert("Erro ao carregar pendências: " + err);
   }
 }
 
-// ---------- Abas das Pendências ----------
-function mostrarAba(nome) {
-  document.querySelectorAll(".aba").forEach((x) =>
-    x.classList.toggle("ativa", x.dataset.aba === nome)
+// Monta a tabela de manutenções conforme o filtro escolhido.
+function mostrarPendencias() {
+  const corpo = document.querySelector("#lista-pendencias");
+  const aviso = document.querySelector("#pend-aviso");
+  corpo.innerHTML = "";
+
+  document.querySelectorAll(".opcao-filtro").forEach((x) =>
+    x.classList.toggle("ativa", x.dataset.filtro === filtroPendencias)
   );
-  document.querySelector("#aba-manutencoes").hidden = nome !== "manutencoes";
-  document.querySelector("#aba-os").hidden = nome !== "os";
+
+  const vencidas = filtroPendencias === "pendentes";
+  const itens = pendenciasCache.filter((p) => (vencidas ? p.dias <= 0 : p.dias > 0));
+
+  if (pendenciasCache.length === 0) {
+    aviso.textContent = "Nenhum equipamento ativo cadastrado.";
+  } else if (itens.length === 0) {
+    aviso.textContent = vencidas
+      ? "Nenhuma manutenção vencida. Veja as próximas em “No Prazo”."
+      : "Nenhuma manutenção no prazo.";
+  } else {
+    aviso.textContent = "";
+  }
+
+  for (const p of itens) {
+    const tr = document.createElement("tr");
+    const celulas = [
+      p.nome,
+      p.localizacao,
+      formatarData(p.proxima_manutencao),
+      textoSituacao(p.dias),
+    ];
+    celulas.forEach((texto, i) => {
+      const td = document.createElement("td");
+      td.textContent = texto;
+      if (i === 3 && p.dias < 0) td.classList.add("atrasada");
+      tr.appendChild(td);
+    });
+
+    const tdAcao = document.createElement("td");
+    if (p.dias <= 0) {
+      tdAcao.appendChild(botao("Concluir", () => abrirConclusao(p)));
+    }
+    tr.appendChild(tdAcao);
+
+    corpo.appendChild(tr);
+  }
 }
 
 // ---------- Nova OS ----------
@@ -403,12 +457,20 @@ formOs.addEventListener("submit", async (ev) => {
   try {
     await invocarTravando("criar_os", { os });
     formOs.reset();
+    atualizarContadorOs();
     navegar("pendencias");
     mostrarAba("os");
   } catch (err) {
     msgOs.textContent = err;
     msgOs.hidden = false;
   }
+});
+
+// Cancelar da Nova OS: limpa o formulário e volta para as Pendências.
+document.querySelector("#os-cancelar").addEventListener("click", () => {
+  formOs.reset();
+  atualizarContadorOs();
+  navegar("pendencias");
 });
 
 // ---------- OS pendentes ----------
@@ -444,39 +506,42 @@ async function carregarOsPendentes() {
   }
 }
 
-// ---------- Concluir (manutenção ou OS) ----------
+// ---------- Concluir (manutenção ou OS): janela por cima das Pendências ----------
 let concluindo = null; // { tipo: "manutencao" | "os", id }
+const dlgConc = document.querySelector("#dlg-concluir");
 const formConc = document.querySelector("#form-concluir");
 const msgConc = document.querySelector("#conc-msg");
+const resumoConc = document.querySelector("#conc-resumo");
+
+function abrirJanelaConclusao(titulo, linhas) {
+  document.querySelector("#conc-titulo").textContent = titulo;
+  resumoConc.replaceChildren(...linhas.map(paragrafo));
+  document.querySelector("#conc-obs").value = "";
+  atualizarContadorConc();
+  msgConc.hidden = true;
+  dlgConc.showModal();
+}
 
 function abrirConclusao(p) {
   concluindo = { tipo: "manutencao", id: p.id_equipamento };
-  document.querySelector("#conc-titulo").textContent = "Concluir manutenção";
-  document.querySelector("#conc-resumo").textContent =
-    `${p.nome} – ${p.localizacao} (previsto para ${formatarData(p.proxima_manutencao)})`;
-  document.querySelector("#conc-obs").value = "";
-  msgConc.hidden = true;
-  navegar("concluir");
+  abrirJanelaConclusao("Concluir Manutenção", [
+    `${p.nome} – ${p.localizacao}`,
+    `Próxima manutenção: ${formatarData(p.proxima_manutencao)}`,
+  ]);
 }
 
 function abrirConclusaoOs(o) {
   concluindo = { tipo: "os", id: o.id_os };
-  document.querySelector("#conc-titulo").textContent = "Concluir ordem de serviço";
-  document.querySelector("#conc-resumo").textContent =
-    `OS #${o.id_os} – ${o.equipamento} (${o.localizacao}): ${o.descricao_problema}`;
-  document.querySelector("#conc-obs").value = "";
-  msgConc.hidden = true;
-  navegar("concluir");
+  abrirJanelaConclusao("Concluir OS", [
+    `OS: #${o.id_os}`,
+    `Equipamento: ${o.equipamento} – ${o.localizacao}`,
+    `Problema: ${o.descricao_problema}`,
+    `Aberta em: ${formatarData(o.data_abertura)}`,
+  ]);
 }
 
-function voltarParaPendencias() {
-  navegar("pendencias");
-  mostrarAba(concluindo && concluindo.tipo === "os" ? "os" : "manutencoes");
-}
-
-document
-  .querySelector("#conc-cancelar")
-  .addEventListener("click", voltarParaPendencias);
+document.querySelector("#conc-cancelar").addEventListener("click", () => dlgConc.close());
+document.querySelector("#conc-fechar").addEventListener("click", () => dlgConc.close());
 
 formConc.addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -487,7 +552,8 @@ formConc.addEventListener("submit", async (ev) => {
       id: concluindo.id,
       observacoes: document.querySelector("#conc-obs").value,
     });
-    voltarParaPendencias();
+    dlgConc.close();
+    carregarPendencias();
   } catch (err) {
     msgConc.textContent = err;
     msgConc.hidden = false;
