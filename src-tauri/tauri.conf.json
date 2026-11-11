@@ -10,12 +10,9 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "HomeCare",
-        "width": 1440,
-        "height": 1024,
-        "minWidth": 1100,
-        "minHeight": 700,
-        "center": true
+        "title": "homecare",
+        "width": 800,
+        "height": 600
       }
     ],
     "security": {
