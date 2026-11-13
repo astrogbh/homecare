@@ -130,6 +130,9 @@ button.pequeno { font-size: 15px; padding: 4px 14px; border-radius: 12px; }
 
 .campo-senha { position: relative; display: block; }
 .campo-senha input { padding-right: 44px; }
+/* Esconde o olho nativo do Windows (WebView2/Edge); fica só o nosso botão */
+.campo-senha input::-ms-reveal,
+.campo-senha input::-ms-clear { display: none; }
 .olho {
   position: absolute;
   right: 8px;
@@ -143,7 +146,7 @@ button.pequeno { font-size: 15px; padding: 4px 14px; border-radius: 12px; }
 }
 .olho:hover { background: transparent; color: var(--azul-escuro); }
 
-.btn-continuar {
+.btn-entrar {
   height: 50px;
   margin-top: 8px;
   background: var(--creme);
@@ -151,7 +154,7 @@ button.pequeno { font-size: 15px; padding: 4px 14px; border-radius: 12px; }
   border-radius: 6px;
   font-size: 22px;
 }
-.btn-continuar:hover { background: var(--fundo); }
+.btn-entrar:hover { background: var(--fundo); }
 
 /* ---------- Layout do programa ---------- */
 .app { display: flex; min-height: 100vh; }
@@ -288,11 +291,13 @@ button.pequeno { font-size: 15px; padding: 4px 14px; border-radius: 12px; }
 
 .formulario-equip {
   flex-direction: row;
-  align-items: center;
+  align-items: flex-end;
   gap: 40px;
   flex-wrap: wrap;
 }
 .formulario-equip .campos { display: flex; flex-direction: column; gap: 22px; }
+/* Botões alinhados com a base do último campo (Próxima manutenção) */
+.formulario-equip .botoes { margin-bottom: 0; }
 .largo { width: 479px; max-width: 100%; }
 .medio { width: 350px; max-width: 100%; }
 .data { width: 217px; }
